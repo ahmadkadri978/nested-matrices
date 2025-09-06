@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>المصفوفات المتداخلة – الحقل الواحد ← 7 ← 1 ← الحقل الواحد</title>
+    <style>
+        :root{
+          --bg: #0b1020;
+          --card: #0f172a;
+          --border: #1f2b46;
+          --text: #e6edf3;
+          --muted: #9fb1c5;
+          --accent: #8ab4ff;
+          --accent-2: #b8d1ff;
+          --ring: rgba(138,180,255,.35);
+          --sticky: 140px; /* سيتم تحديثه برمجياً */
+          --radius: 16px;
+          --pad: 14px;
+          --indent: 34px;
+        }
+
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+          margin:0;
+          font-family: "Cairo", Tahoma, Arial, sans-serif;
+          background:
+            radial-gradient(1200px 600px at 50% -120px, #1a2542 0%, var(--bg) 42%, #070a14 100%);
+          color: var(--text);
+        }
+
+        .container{
+          width:min(980px, 96vw);
+          margin:0 auto;
+          padding:12px;
+        }
+
+        /* ===== Header (sticky) ===== */
+        .header{
+          position: top: 0; z-index: 20;
+          background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+          border:1px solid var(--border);
+          border-radius:18px;
+          padding:16px 14px;
+          box-shadow: 0 10px 30px rgba(0,0,0,.28);
+          backdrop-filter: blur(4px);
+          margin-top: 8px;
+        }
+        .title{
+          margin:0 0 6px;
+          font-weight:900;
+          letter-spacing:.2px;
+          font-size: clamp(20px, 4.4vw, 28px);
+          line-height: 1.2;
+        }
+        .subtitle{
+          margin:0;
+          color: var(--muted);
+          font-size: clamp(12px, 3.2vw, 14px);
+        }
+
+        /* ===== Toolbar (sticky) ===== */
+        .toolbar{
+          position:  top: calc(var(--toolbar-top, 0px)); z-index: 19;
+          background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+          border:1px solid var(--border);
+          border-radius:12px;
+          padding:8px 10px;
+          display:flex; gap:10px; justify-content:space-between; align-items:center;
+          box-shadow: 0 8px 24px rgba(0,0,0,.2);
+          margin: 8px 0 12px;
+          backdrop-filter: blur(2px);
+        }
+        .breadcrumb{
+          color: var(--muted);
+          font-size: clamp(11px, 3vw, 13px);
+          white-space:nowrap; overflow:auto;
+          padding-bottom:2px;
+        }
+        .btns{ display:flex; gap:8px; flex-wrap:wrap; }
+        button{
+          background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+          border:1px solid var(--border);
+          color: var(--text);
+          padding:8px 12px;
+          border-radius:10px;
+          cursor:pointer;
+          font-size: clamp(12px, 3.2vw, 13px);
+          transition: transform .06s ease, background .2s ease, border-color .2s ease;
+        }
+        button:hover{ background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03)); }
+        button:active{ transform: translateY(1px); }
+        .btn-accent{ border-color: rgba(138,180,255,.5); box-shadow: 0 0 0 3px var(--ring); }
+
+        /* ===== Levels ===== */
+        .level{
+          border:1px solid var(--border);
+          background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.00));
+          border-radius: var(--radius);
+          padding: var(--pad);
+          box-shadow: 0 10px 26px rgba(0,0,0,.18);
+          position:relative;
+          margin-bottom: 10px;
+
+          /* المفتاح: يضمن أن أي scrollIntoView أو تنقل بالرابط
+             يتوقف قبل الرأس sticky بمقدار كافٍ */
+          scroll-margin-top: calc(var(--sticky) + 8px);
+        }
+
+        .rail{
+          position:absolute; inset:52px auto 16px 22px;
+          width:2px; border-radius:2px;
+          background: linear-gradient(180deg, rgba(138,180,255,.25), rgba(138,180,255,.00));
+          pointer-events:none;
+        }
+
+        .level__header{
+          display:flex; align-items:center; gap:12px;
+          cursor:pointer; padding:10px 10px;
+          border-radius:12px;
+          transition: background .2s ease, transform .05s ease;
+          outline:none;
+        }
+        .level__header:hover{ background: rgba(138,180,255,.08); }
+        .level__header:focus-visible{ box-shadow: 0 0 0 3px var(--ring); }
+
+        .chev{
+          width:22px;height:22px; display:grid;place-items:center; flex:0 0 auto;
+          border-radius:8px; background: rgba(138,180,255,.14); color: var(--accent);
+          transition: transform .2s ease, background .2s ease, color .2s ease;
+        }
+        .level[data-open="true"] .chev{
+          transform: rotate(-90deg);
+          background: rgba(138,180,255,.24);
+          color: var(--accent-2);
+        }
+
+        .badge{
+          font-weight:800; padding:3px 10px; border-radius:999px;
+          background: rgba(138,180,255,.14); color: var(--accent-2);
+          font-size: 13px; border:1px solid rgba(138,180,255,.28);
+        }
+
+        .name{ font-weight:800; letter-spacing:.2px; font-size: clamp(14px, 3.4vw, 17px); }
+        .desc{ color: var(--muted); font-size: clamp(11px, 3vw, 13px); }
+
+        .level__body{ padding-top: 10px; display:none; }
+        .indent{ padding-inline-start: var(--indent); }
+        .level[data-open="true"] > .level__body{ display:block; }
+
+        /* Zero levels */
+        .level--zero .level__header{ cursor:default; }
+        .level--zero .chev{ display:none; }
+        .level--zero .badge{
+          background: rgba(250,204,21,.14); color:#fde68a; border:1px solid rgba(250,204,21,.25);
+        }
+
+        .tip{ text-align:center; color: var(--muted); font-size: 12px; margin: 10px 0 18px; }
+
+        /* ===== Responsive tweaks ===== */
+        @media (max-width: 640px){
+          :root{ --radius: 14px; --pad: 12px; --indent: 20px; }
+          .rail{ left: 16px; }
+          .container{ padding:10px; }
+          .header{ padding:14px 12px; }
+          .toolbar{ padding:8px; gap:8px; }
+          .btns{ gap:6px; }
+          .badge{ padding:2px 8px; font-size:12px; }
+          .chev{ width:20px; height:20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container" role="application" aria-label="مخطط المصفوفات المتداخلة">
+    <header id="hdr" class="header">
+        <p style="margin:6px 0 0; font-size:14px; font-weight:600; color:#8ab4ff;">
+            صفحة: الوعي القادم
+        </p>
+        <h1 class="title">المصفوفات المتداخلة – الحقل الواحد ← 7 ← 1 ← الحقل الواحد</h1>
+        <p class="subtitle">انقر على كل مستوى لكشف المستوى المتداخل الذي يحتويه. يعمل بسلاسة على الجوال.</p>
+    </header>
+
+    <div id="bar" class="toolbar">
+        <div class="breadcrumb" id="crumb">المسار: 0 (الأصل)</div>
+        <div class="btns">
+            <button id="openAll" class="btn-accent">فتح الكل</button>
+            <button id="closeAll">إغلاق الكل</button>
+        </div>
+    </div>
+
+    <!-- 0 (الأصل) -->
+    <section class="level level--zero" aria-label="الحقل الواحد — الأصل">
+        <div class="level__header">
+            <span class="badge">0</span>
+            <div>
+                <div class="name">الحقل الواحد — الأصل</div>
+                <div class="desc">منه تنبثق جميع المصفوفات.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="level l7" data-open="false" data-level="7" aria-label="7 المصفوفة العظمى الواحدة">
+        <div class="level__header" tabindex="0" role="button" aria-expanded="false">
+            <div class="chev" aria-hidden="true">▶</div>
+            <span class="badge">7</span>
+            <div>
+                <div class="name">المصفوفة العظمى الواحدة</div>
+                <div class="desc">اتحاد جميع المصفوفات الكبيرة في مصفوفة واحدة.</div>
+            </div>
+        </div>
+        <div class="level__body indent" role="region" aria-label="المستوى 6">
+            <div class="rail"></div>
+
+            <!-- 6 -->
+            <section class="level l6" data-open="false" data-level="6" aria-label="6 مصفوفات المشاعر + الحكمة">
+                <div class="level__header" tabindex="0" role="button" aria-expanded="false">
+                    <div class="chev" aria-hidden="true">▶</div>
+                    <span class="badge">6</span>
+                    <div>
+                        <div class="name">مصفوفات المشاعر + الحكمة</div>
+                        <div class="desc">دمج الحقول العاطفية مع الحكمة.</div>
+                    </div>
+                </div>
+                <div class="level__body indent" role="region" aria-label="المستوى 5">
+                    <div class="rail"></div>
+
+                    <!-- 5 -->
+                    <section class="level l5" data-open="false" data-level="5" aria-label="5 مصفوفات الحكمة">
+                        <div class="level__header" tabindex="0" role="button" aria-expanded="false">
+                            <div class="chev" aria-hidden="true">▶</div>
+                            <span class="badge">5</span>
+                            <div>
+                                <div class="name">مصفوفات الحكمة</div>
+                                <div class="desc">البنى الفكرية القائمة على الحكمة.</div>
+                            </div>
+                        </div>
+                        <div class="level__body indent" role="region" aria-label="المستوى 4">
+                            <div class="rail"></div>
+
+                            <!-- 4 -->
+                            <section class="level l4" data-open="false" data-level="4" aria-label="4 مصفوفات المشاعر">
+                                <div class="level__header" tabindex="0" role="button" aria-expanded="false">
+                                    <div class="chev" aria-hidden="true">▶</div>
+                                    <span class="badge">4</span>
+                                    <div>
+                                        <div class="name">مصفوفات المشاعر</div>
+                                        <div class="desc">الحقول العاطفية الجمعية.</div>
+                                    </div>
+                                </div>
+                                <div class="level__body indent" role="region" aria-label="المستوى 3">
+                                    <div class="rail"></div>
+
+                                    <!-- 3 -->
+                                    <section class="level l3" data-open="false" data-level="3" aria-label="3 مصفوفات الأعضاء + الجسيمات">
+                                        <div class="level__header" tabindex="0" role="button" aria-expanded="false">
+                                            <div class="chev" aria-hidden="true">▶</div>
+                                            <span class="badge">3</span>
+                                            <div>
+                                                <div class="name">مصفوفات الأعضاء + الجسيمات</div>
+                                                <div class="desc">أنظمة حيّة مبنية على الجسيمات.</div>
+                                            </div>
+                                        </div>
+                                        <div class="level__body indent" role="region" aria-label="المستوى 2">
+                                            <div class="rail"></div>
+
+                                            <!-- 2 -->
+                                            <section class="level l2" data-open="false" data-level="2" aria-label="2 مصفوفات العناصر">
+                                                <div class="level__header" tabindex="0" role="button" aria-expanded="false">
+                                                    <div class="chev" aria-hidden="true">▶</div>
+                                                    <span class="badge">2</span>
+                                                    <div>
+                                                        <div class="name">مصفوفات العناصر</div>
+                                                        <div class="desc">التراكيب الذرية والكيميائية.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="level__body indent" role="region" aria-label="المستوى 1">
+                                                    <div class="rail"></div>
+
+                                                    <!-- 1 -->
+                                                    <section class="level l1" data-open="false" data-level="1" aria-label="1 مصفوفات الجسيمات">
+                                                        <div class="level__header" tabindex="0" role="button" aria-expanded="false">
+                                                            <div class="chev" aria-hidden="true">▶</div>
+                                                            <span class="badge">1</span>
+                                                            <div>
+                                                                <div class="name">مصفوفات الجسيمات</div>
+                                                                <div class="desc">الحقول الأولية للجسيمات الأساسية.</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="level__body">
+                                                            <div class="desc">هذا هو المستوى الأخير (لا مستويات أعمق).</div>
+                                                        </div>
+                                                    </section>
+                                                    <!-- /1 -->
+                                                </div>
+                                            </section>
+                                            <!-- /2 -->
+                                        </div>
+                                    </section>
+                                    <!-- /3 -->
+                                </div>
+                            </section>
+                            <!-- /4 -->
+                        </div>
+                    </section>
+                    <!-- /5 -->
+                </div>
+            </section>
+            <!-- /6 -->
+        </div>
+    </section>
+    <!-- /7 -->
+
+    <!-- 0 (العودة) -->
+    <section class="level level--zero" aria-label="الحقل الواحد — العودة">
+        <div class="level__header">
+            <span class="badge">0</span>
+            <div>
+                <div class="name">الحقل الواحد — العودة</div>
+                <div class="desc">إذابة كل المصفوفات في الوحدة.</div>
+            </div>
+        </div>
+    </section>
+
+    <p class="tip">تلميح: استخدم «فتح الكل» و«إغلاق الكل»، أو Enter/Space لفتح/إغلاق أي مستوى. التمرير يراعي الرأس الثابت.</p>
+</div>
+
+<script>
+    // احسب ارتفاع (الهيدر + التولبار) واضبط المتغيّر --sticky + موضع التولبار
+    function computeStickyOffset(){
+      const hdr = document.getElementById('hdr');
+      const bar = document.getElementById('bar');
+      const hdrRect = hdr.getBoundingClientRect();
+      const hdrH = hdr.offsetHeight;
+      const gap = 8; // مسافة صغيرة بين الهيدر والتولبار
+      // اجعل التولبار يلتصق أسفل الهيدر مباشرة
+      bar.style.setProperty('--toolbar-top', (hdrH + 8) + 'px');
+      // اضبط قيمة scroll-margin-top لكل مستوى:
+      const sticky = hdrH + bar.offsetHeight + gap + 8; // هامش إضافي بسيط
+      document.documentElement.style.setProperty('--sticky', sticky + 'px');
+    }
+
+    window.addEventListener('load', computeStickyOffset);
+    window.addEventListener('resize', () => { requestAnimationFrame(computeStickyOffset); });
+    new MutationObserver(computeStickyOffset).observe(document.getElementById('bar'), {attributes:true, childList:true, subtree:true});
+
+    // وظائف الفتح/الإغلاق وتحديث المسار
+    const crumb = document.getElementById('crumb');
+    const headers = document.querySelectorAll('.level:not(.level--zero) .level__header');
+    const openAllBtn = document.getElementById('openAll');
+    const closeAllBtn = document.getElementById('closeAll');
+
+    headers.forEach(h => {
+      h.addEventListener('click', () => toggle(h));
+      h.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(h); }
+      });
+    });
+
+    function toggle(header){
+      const level = header.parentElement;
+      const open = level.getAttribute('data-open') === 'true';
+      level.setAttribute('data-open', open ? 'false' : 'true');
+      header.setAttribute('aria-expanded', (!open).toString());
+      updateBreadcrumb();
+
+      // عند الفتح، إذا كان رأس القسم سيصير تحت الهيدر، اضبط التمرير قليلاً للأعلى
+      if(!open){
+        const rect = level.getBoundingClientRect();
+        const off = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sticky')) || 140;
+        const topAbs = window.scrollY + rect.top;
+        const targetY = topAbs - off + 6; // 6px هامش بصري
+        window.scrollTo({top: targetY, behavior:'smooth'});
+      }
+    }
+
+    openAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('.level[data-level]').forEach(L => L.setAttribute('data-open','true'));
+      updateBreadcrumb(true);
+      // ابقَ أعلى الصفحة لئلا يغطي الرأس محتوى مفتوحاً بعيداً
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    closeAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('.level[data-level]').forEach(L => L.setAttribute('data-open','false'));
+      updateBreadcrumb(false);
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    function updateBreadcrumb(openAll=null){
+      if(openAll === true){
+        crumb.textContent = 'المسار: 0 (الأصل) → 7 → 6 → 5 → 4 → 3 → 2 → 1 → 0 (العودة)';
+        return;
+      }
+      if(openAll === false){
+        crumb.textContent = 'المسار: 0 (الأصل)';
+        return;
+      }
+      const openLevels = [...document.querySelectorAll('.level[data-level][data-open="true"]')]
+        .map(L => L.getAttribute('data-level'))
+        .sort((a,b)=> b-a);
+      const path = ['0 (الأصل)', ...openLevels, ...(openLevels.includes('1') ? ['0 (العودة)'] : [])];
+      crumb.textContent = 'المسار: ' + path.join(' → ');
+    }
+</script>
+</body>
+</html>
